@@ -1,70 +1,72 @@
 # core/captcha.py
-import os, time, requests
+#
+# A minimal implementation of 2Captcha API integration.  This module
+# defines the CaptchaSolver class which can be used by the scraper to
+# solve various types of captchas (e.g. reCAPTCHA v2, hCaptcha) when
+# encountered on property listing websites.  See README for usage.
+
+import os
+import time
+import requests
+
 
 class CaptchaSolver:
+    """Simple client for 2Captcha.  Only the API methods used by the
+    scraper are implemented here.  To use this class you must set the
+    environment variable ``RP_CAPTCHA_APIKEY`` to a valid 2Captcha API key.
+
+    This class hides the details of submitting a captcha challenge to
+    2Captcha and polling for the result.  If you need more fine‑grained
+    control or wish to support additional captcha types, extend this
+    implementation as needed.
     """
-    Minimal 2Captcha client. Supports:
-      - reCAPTCHA v2 (checkbox/invisible): method=userrecaptcha
-      - hCaptcha: method=hcaptcha
 
-    Env:
-      CAPTCHA_PROVIDER=2captcha
-      CAPTCHA_API_KEY=<your key>
-      CAPTCHA_MAX_WAIT=180  (seconds)
-      CAPTCHA_POLL_EVERY=5  (seconds)
-    """
-    def __init__(self):
-        self.provider = (os.getenv("CAPTCHA_PROVIDER") or "").lower()
-        self.api_key = os.getenv("CAPTCHA_API_KEY")
-        self.max_wait = int(os.getenv("CAPTCHA_MAX_WAIT", "180"))
-        self.poll_every = int(os.getenv("CAPTCHA_POLL_EVERY", "5"))
+    API_KEY = os.getenv("RP_CAPTCHA_APIKEY")
+    SUBMIT_URL = "https://2captcha.com/in.php"
+    POLL_URL = "https://2captcha.com/res.php"
 
-    def available(self) -> bool:
-        return self.provider == "2captcha" and bool(self.api_key)
+    def _submit(self, data: dict) -> str:
+        """Submit a captcha for solving.  Returns the task ID."""
+        data.update({"key": self.API_KEY, "json": 1})
+        res = requests.post(self.SUBMIT_URL, data=data, timeout=30)
+        res.raise_for_status()
+        payload = res.json()
+        if payload.get("status") != 1:
+            raise RuntimeError(f"2Captcha submit failed: {payload}")
+        return payload["request"]
 
-    # ---------- 2Captcha ----------
-    def _2captcha_submit(self, method: str, sitekey: str, url: str, invisible: bool = False):
-        payload = {
-            "key": self.api_key,
-            "method": method,  # "userrecaptcha" or "hcaptcha"
-            "googlekey" if method == "userrecaptcha" else "sitekey": sitekey,
-            "pageurl": url,
-            "json": 1,
-        }
-        if method == "userrecaptcha" and invisible:
-            payload["invisible"] = 1
-        r = requests.post("https://2captcha.com/in.php", data=payload, timeout=30)
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") != 1:
-            raise RuntimeError(f"2captcha submit failed: {data}")
-        return data["request"]  # request id
+    def _poll(self, task_id: str, max_wait: int = 120) -> str:
+        """Poll 2Captcha for the result.  Returns the solution token."""
+        for _ in range(max_wait):
+            res = requests.get(self.POLL_URL, params={
+                "key": self.API_KEY,
+                "action": "get",
+                "id": task_id,
+                "json": 1,
+            }, timeout=15)
+            res.raise_for_status()
+            payload = res.json()
+            if payload.get("status") == 1:
+                return payload["request"]
+            if payload.get("request") not in ("CAPCHA_NOT_READY", "ERROR_NO_USER_CAPTCHA"):
+                raise RuntimeError(f"2Captcha poll failed: {payload}")
+            time.sleep(5)
+        raise TimeoutError("Timeout waiting for captcha to be solved")
 
-    def _2captcha_poll(self, req_id: str):
-        start = time.time()
-        while time.time() - start < self.max_wait:
-            time.sleep(self.poll_every)
-            r = requests.get("https://2captcha.com/res.php",
-                             params={"key": self.api_key, "action": "get", "id": req_id, "json": 1},
-                             timeout=30)
-            r.raise_for_status()
-            data = r.json()
-            if data.get("status") == 1:
-                return data["request"]  # g-recaptcha-response or h-captcha-response
-            elif data.get("request") in ("CAPCHA_NOT_READY", "ERROR_NO_SLOT_AVAILABLE"):
-                continue
-            else:
-                raise RuntimeError(f"2captcha solve failed: {data}")
-        raise TimeoutError("2captcha timed out")
+    def solve_recaptcha_v2(self, site_key: str, site_url: str) -> str:
+        """Solve a Google reCAPTCHA v2 challenge.  Returns the token."""
+        task_id = self._submit({
+            "method": "userrecaptcha",
+            "googlekey": site_key,
+            "pageurl": site_url,
+        })
+        return self._poll(task_id)
 
-    def solve_recaptcha_v2(self, sitekey: str, page_url: str, invisible=False) -> str:
-        if not self.available():
-            raise RuntimeError("Captcha solver not available")
-        req_id = self._2captcha_submit("userrecaptcha", sitekey, page_url, invisible=invisible)
-        return self._2captcha_poll(req_id)
-
-    def solve_hcaptcha(self, sitekey: str, page_url: str) -> str:
-        if not self.available():
-            raise RuntimeError("Captcha solver not available")
-        req_id = self._2captcha_submit("hcaptcha", sitekey, page_url)
-        return self._2captcha_poll(req_id)
+    def solve_hcaptcha(self, site_key: str, site_url: str) -> str:
+        """Solve an hCaptcha challenge.  Returns the token."""
+        task_id = self._submit({
+            "method": "hcaptcha",
+            "sitekey": site_key,
+            "pageurl": site_url,
+        })
+        return self._poll(task_id)

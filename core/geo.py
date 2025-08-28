@@ -1,196 +1,84 @@
 # core/geo.py
-"""
-Lightweight geocoding with OpenStreetMap Nominatim.
+#
+# Lightweight geocoding utilities built on top of the OpenStreetMap
+# Nominatim API.  This module caches results to avoid unnecessary
+# repeated lookups and rate limits requests to be respectful of the
+# service.  See the README for details on configuring cache paths and
+# geocoding limits.
 
-Features
-- 1 req/sec rate limit (per Nominatim usage policy spirit)
-- Persistent cache at logs/geocache.json
-- Per-run cap via RP_MAX_GEOCODES (default 120)
-- Can disable geocoding via RP_GEOCODE=0 (returns unchanged listings)
-- Robust: skips blanks, handles timeouts, never throws
-
-Env (cmd.exe examples)
-  set RP_GEOCODE=1              # enable (default 1)
-  set RP_MAX_GEOCODES=120       # per-run cap
-  set RP_NET_RETRY_SECS=180     # already used elsewhere; honored here too
-  set RP_DEBUG=1                # print debug
-
-Input/Output
-- Each listing dict may contain: 'location', 'estate_name', 'listing_url'
-- We set listing['coordinates'] = {'lat': float, 'lng': float} on success
-"""
-
-import os, json, time, threading
+import json
+import os
+import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
+
 import requests
 
-RP_DEBUG = os.getenv("RP_DEBUG") == "1"
-RP_GEOCODE = os.getenv("RP_GEOCODE", "1") != "0"
-RP_MAX_GEOCODES = int(os.getenv("RP_MAX_GEOCODES", "120"))
-RP_NET_RETRY_SECS = int(os.getenv("RP_NET_RETRY_SECS", "180"))
 
-# Where we persist geocode cache
-CACHE_PATH = Path("logs") / "geocache.json"
-CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-# Nominatim requires a descriptive User-Agent incl. contact
-UA = os.getenv(
-    "NOMINATIM_UA",
-    "RealtorsPractice/1.0 (+contact: you@example.com)"
-)
-
-_lock = threading.Lock()
-_last_call_ts = 0.0
+GEOCACHE_PATH = Path("logs/geocache.json")
+GEOCODE_DELAY_SECONDS = 1  # minimum delay between requests
+MAX_GEOCODES_PER_RUN = int(os.getenv("RP_MAX_GEOCODES", "100"))
 
 
-def _load_cache() -> Dict[str, Dict[str, float]]:
-    if CACHE_PATH.exists():
-        try:
-            return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
+def _load_cache() -> Dict[str, Tuple[float, float]]:
+    if GEOCACHE_PATH.exists():
+        with GEOCACHE_PATH.open("r", encoding="utf-8") as f:
+            return json.load(f)
     return {}
 
 
-def _save_cache(cache: Dict[str, Dict[str, float]]):
-    try:
-        CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+def _save_cache(cache: Dict[str, Tuple[float, float]]) -> None:
+    GEOCACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with GEOCACHE_PATH.open("w", encoding="utf-8") as f:
+        json.dump(cache, f)
 
 
-def _rate_limit():
-    global _last_call_ts
-    with _lock:
-        now = time.time()
-        delta = now - _last_call_ts
-        if delta < 1.05:  # ~1 req/sec
-            time.sleep(1.05 - delta)
-        _last_call_ts = time.time()
-
-
-def _request_with_retry(session: requests.Session, url: str, params: dict, timeout: int = 30) -> Optional[requests.Response]:
-    start = time.time()
-    attempt = 0
-    while True:
-        attempt += 1
-        try:
-            _rate_limit()
-            r = session.get(url, params=params, timeout=timeout)
-            if r.status_code == 200:
-                return r
-        except Exception:
-            pass
-        if time.time() - start > RP_NET_RETRY_SECS:
-            return None
-        time.sleep(min(6, 1 + attempt * 0.75))
-
-
-def _clean_addr(s: str) -> str:
-    s = (s or "").strip()
-    # Cheap normalization to reduce cache misses
-    return " ".join(s.split())
-
-
-def _compose_query(listing: Dict[str, Any]) -> Optional[str]:
-    loc = _clean_addr(str(listing.get("location") or ""))
-    estate = _clean_addr(str(listing.get("estate_name") or ""))
-    # Prefer the more specific text if present
-    if estate and "estate" in estate.lower():
-        q = f"{estate}, Lagos, Nigeria"
-    elif loc:
-        q = f"{loc}, Lagos, Nigeria" if "lagos" not in loc.lower() else loc
-    else:
-        # fallback to title if it looks location-ish
-        title = _clean_addr(str(listing.get("title") or ""))
-        if title:
-            q = f"{title}, Lagos, Nigeria"
-        else:
-            return None
-    return _clean_addr(q)
-
-
-def geocode_address(session: requests.Session, query: str) -> Optional[Dict[str, float]]:
-    """Geocode a single free-text address via Nominatim."""
+def _geocode(address: str) -> Optional[Tuple[float, float]]:
+    """Call Nominatim to geocode an address.  Returns (lat, lon) or
+    None if not found."""
     url = "https://nominatim.openstreetmap.org/search"
     params = {
-        "q": query,
+        "q": address,
         "format": "json",
         "limit": 1,
-        "addressdetails": 0,
     }
-    resp = _request_with_retry(session, url, params)
-    if not resp:
-        return None
+    time.sleep(GEOCODE_DELAY_SECONDS)
     try:
-        data = resp.json()
-        if isinstance(data, list) and data:
-            lat = float(data[0]["lat"])
-            lon = float(data[0]["lon"])
-            return {"lat": lat, "lng": lon}
-    except Exception:
+        res = requests.get(url, params=params, headers={"User-Agent": "RealtorScraper"}, timeout=30)
+        res.raise_for_status()
+    except requests.RequestException:
         return None
-    return None
+    data = res.json()
+    if not data:
+        return None
+    lat = data[0].get("lat")
+    lon = data[0].get("lon")
+    return (float(lat), float(lon)) if lat and lon else None
 
 
-def geocode_listings(listings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def geocode_listings(listings: Iterable[Dict[str, Any]]) -> None:
+    """Augment listings in place with latitude/longitude coordinates.
+
+    Uses a simple cache to avoid repeated requests for the same address
+    and respects the ``MAX_GEOCODES_PER_RUN`` limit to avoid hitting
+    rate limits.  Updates the ``coordinates`` field of each listing if
+    geocoding succeeds.
     """
-    Batch geocode. Mutates copies of the listings to add 'coordinates'.
-    Returns a new list (does not modify original list in-place).
-    """
-    if not RP_GEOCODE or not listings:
-        if RP_DEBUG:
-            print("    [geo] geocoding disabled or no listings")
-        return listings
-
     cache = _load_cache()
-    out: List[Dict[str, Any]] = []
-    used = 0
-
-    with requests.Session() as s:
-        s.headers.update({
-            "User-Agent": UA,
-            "Accept": "application/json,text/*,*/*;q=0.8",
-        })
-
-        for item in listings:
-            # Clone to avoid side-effects upstream
-            rec = dict(item)
-            if rec.get("coordinates"):
-                out.append(rec)
-                continue
-
-            q = _compose_query(rec)
-            if not q:
-                out.append(rec)
-                continue
-
-            # Cache hit?
-            cached = cache.get(q)
-            if cached and "lat" in cached and "lng" in cached:
-                rec["coordinates"] = {"lat": cached["lat"], "lng": cached["lng"]}
-                out.append(rec)
-                continue
-
-            # Respect per-run cap
-            if used >= RP_MAX_GEOCODES:
-                if RP_DEBUG:
-                    print(f"    [geo] cap reached ({RP_MAX_GEOCODES}); skipping the rest")
-                out.append(rec)
-                continue
-
-            coords = geocode_address(s, q)
-            if coords:
-                rec["coordinates"] = coords
-                cache[q] = coords
-                used += 1
-            # even if miss, we keep the record; just without coordinates
-            out.append(rec)
-
-    # persist cache at end
-    _save_cache(cache)
-
-    if RP_DEBUG:
-        print(f"    [geo] completed: used={used}, cache_size={len(cache)}")
-    return out
+    geocoded = 0
+    for item in listings:
+        if item.get("coordinates") or not item.get("location"):
+            continue
+        loc = item["location"]
+        if loc in cache:
+            item["coordinates"] = cache[loc]
+            continue
+        if geocoded >= MAX_GEOCODES_PER_RUN:
+            break
+        coords = _geocode(loc)
+        if coords:
+            cache[loc] = coords
+            item["coordinates"] = coords
+            geocoded += 1
+    if geocoded > 0:
+        _save_cache(cache)
