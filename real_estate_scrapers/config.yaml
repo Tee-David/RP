@@ -1,0 +1,31 @@
+# Generated from dashboard config.json
+enabled_sites:
+  - npc
+  - propertypro
+areas:
+  - Lekki Phase 1
+  - Ikate
+  - Osapa
+  - Chevron
+  - Agungi
+  - Jakande
+  - Lekki Scheme II
+  - Sangotedo
+  - Abijo
+  - Lakowe
+  - Awoyaya
+  - Eleko
+  - Alaro City
+  - Epe
+npc:
+  base_url: "https://nigeriapropertycentre.com/for-sale"
+  pages_per_run: 2
+  delay_range:
+    - 2
+    - 6
+propertypro:
+  base_url: "https://propertypro.ng/property-for-sale"
+  pages_per_run: 2
+  delay_range:
+    - 2
+    - 6

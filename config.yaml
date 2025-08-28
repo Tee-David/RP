@@ -1,0 +1,265 @@
+enabled_sites:
+- npc
+- propertypro
+- privateproperty
+- property24
+- hutbay
+- lamudi
+- jiji
+- vconnect
+- nigerianpropertymarket
+- propertylisthub
+- quicktellerhomes
+- naijahouses
+- oparahrealty
+- lodges
+- olist
+- realtorng
+- myproperty
+- houseafrica
+- propertyguru
+- buyletlive
+- cwlagos
+- landng
+- lagosproperty
+- ramos
+- edenoasis
+- adronhomes
+- naijalandlord
+- trovit
+- nazaprimehive
+- nigeriapropertyzone
+- castles
+- thinkmint
+- realestatenigeria
+- tradebanq
+- landmall
+- giddaa
+- realtorintl
+- facibus
+- ownahome
+- estateintel
+- spleet
+- rentsmallsmall
+- cuddlerealty
+- takooka_props
+- jaat_properties
+- gtexthomes
+- ashproperties
+- propertieslinkng
+- ubosieleh
+- brokerfield
+
+fallback_order: [requests, playwright]
+
+sites:
+  npc:
+    name: Nigeria Property Centre
+    url: https://nigeriapropertycentre.com/
+    parser: specials
+  propertypro:
+    name: PropertyPro Nigeria
+    url: https://propertypro.ng/
+    parser: specials
+  privateproperty:
+    name: Private Property Nigeria
+    url: https://www.privateproperty.com.ng/
+    parser: specials
+  property24:
+    name: Property24 Nigeria
+    url: https://www.property24.com.ng/
+    parser: specials
+  hutbay:
+    name: Hutbay
+    url: https://www.hutbay.com/
+    parser: specials
+  lamudi:
+    name: Lamudi Nigeria
+    url: https://www.lamudi.com.ng/
+    parser: specials
+  jiji:
+    name: Jiji Real Estate Section
+    url: https://jiji.ng/real-estate
+    parser: specials
+  vconnect:
+    name: VConnect
+    url: https://www.vconnect.com/
+    parser: specials
+  nigerianpropertymarket:
+    name: Nigerian Property Market
+    url: https://nigerianpropertymarket.com/
+    parser: specials
+  propertylisthub:
+    name: Property List Hub
+    url: https://propertylisthub.com/
+    parser: specials
+  quicktellerhomes:
+    name: Quickteller Homes
+    url: https://homes.quickteller.com/
+    parser: specials
+  naijahouses:
+    name: NaijaHouses
+    url: https://www.naijahouses.com/
+    parser: specials
+  oparahrealty:
+    name: Oparah Realty
+    url: https://oparahrealty.com/
+    parser: specials
+  lodges:
+    name: Lodges.ng
+    url: https://www.lodges.ng/
+    parser: specials
+  olist:
+    name: OList Real Estate
+    url: https://www.olist.ng/real-estate
+    parser: specials
+  realtorng:
+    name: Realtor.ng
+    url: https://www.realtor.ng/
+    parser: specials
+  myproperty:
+    name: MyProperty.ng
+    url: https://www.myproperty.ng
+    parser: specials
+  houseafrica:
+    name: HouseAfrica
+    url: https://www.houseafrica.com.ng
+    parser: specials
+  propertyguru:
+    name: Property Guru
+    url: https://propertyguru.com.ng/
+    parser: specials
+  buyletlive:
+    name: BuyLetLive
+    url: https://buyletlive.com/
+    parser: specials
+  cwlagos:
+    name: CW Real Estate
+    url: https://cwlagos.com/
+    parser: specials
+  landng:
+    name: Land.ng
+    url: https://land.ng/
+    parser: specials
+  lagosproperty:
+    name: Lagos Property
+    url: https://lagosproperty.net/
+    parser: specials
+  ramos:
+    name: Ramos Real Estate
+    url: https://ramosrealestateng.com/
+    parser: specials
+  edenoasis:
+    name: Eden Oasis
+    url: https://www.edenoasisrealty.com/
+    parser: specials
+  adronhomes:
+    name: Adron Homes
+    url: https://adronhomesproperties.com/
+    parser: specials
+  naijalandlord:
+    name: NaijaLandlord
+    url: https://www.naijalandlord.com/
+    parser: specials
+  trovit:
+    name: Trovit Homes
+    url: https://homes.trovit.ng/
+    parser: specials
+  nazaprimehive:
+    name: Nazaprime Hive
+    url: https://hive.nazaprime.com.ng
+    parser: specials
+  nigeriapropertyzone:
+    name: Nigeria Property Zone
+    url: https://nigeriapropertyzone.com.ng/
+    parser: specials
+  castles:
+    name: Castles
+    url: http://castles.com.ng/
+    parser: specials
+  thinkmint:
+    name: Thinkmint Nigeria
+    url: http://buyrealestate.thinkmint.ng/
+    parser: specials
+  realestatenigeria:
+    name: Real Estate Nigeria
+    url: https://www.realestatenigeria.com
+    parser: specials
+  tradebanq:
+    name: TradeBanq
+    url: https://www.tradebanq.com
+    parser: specials
+  landmall:
+    name: Landmall.ng
+    url: https://www.landmall.ng/
+    parser: specials
+  giddaa:
+    name: Giddaa
+    url: https://giddaa.com/
+    parser: specials
+  realtorintl:
+    name: Realtor.com International Nigeria
+    url: https://www.realtor.com/international/ng/
+    parser: specials
+  facibus:
+    name: Facibus Housing
+    url: https://facibushousing.com
+    parser: specials
+  ownahome:
+    name: Ownahome
+    url: https://ownahome.ng/
+    parser: specials
+  estateintel:
+    name: Estate Intel
+    url: https://estateintel.com/
+    parser: specials
+  spleet:
+    name: Spleet
+    url: https://spleet.africa/
+    parser: specials
+  rentsmallsmall:
+    name: RentSmallSmall
+    url: https://rentsmallsmall.ng/
+    parser: specials
+  cuddlerealty:
+    name: Cuddle Realty
+    url: https://cuddlerealty.com/
+    parser: specials
+  takooka_props:
+    name: Takooka Properties
+    url: https://properties.takooka.com/
+    parser: specials
+  jaat_properties:
+    name: JAAT Properties & Investment Ltd
+    url: https://takooka.com/jaat-properties.php
+    parser: specials
+  gtexthomes:
+    name: Gtext And Associates
+    url: https://gtexthomes.com/
+    parser: specials
+  ashproperties:
+    name: Ash Properties & Constructions
+    url: https://ashpropertiesng.com/
+    parser: specials
+  propertieslinkng:
+    name: Propertylink Real Estate Investment Limited
+    url: https://propertieslinkng.com/
+    parser: specials
+  ubosieleh:
+    name: Ubosi Eleh + Co.
+    url: https://ubosieleh.com/
+    parser: specials
+  brokerfield:
+    name: Brokerfield Real Estate Services
+    url: https://brokerfieldrealestate.com/
+    parser: specials
+fallback_order:
+- requests
+- playwright
+- scraperapi
+export:
+  formats:
+  - csv
+  - xlsx
+# in config.yaml
+location_filters: []

@@ -1,0 +1,1 @@
+Cannot convert ['https://images.nigeriapropertycentre.com/properties/images/thumbs/3042380/068a4964fb3c75-newly-built-2-bedroom-serviced-apartment-with-gym-elevator-pool-for-sale-ikate-lekki-lagos.jpg'] to Excel
